@@ -60,11 +60,12 @@ class MyScraper:
         if (type(usestate) == bool): pass;
         else: raise ValueError("usestate must be a bool!");
         snmsobjs = cls.getStateNameAndAbreviationsObjects();
+        stky = ("state" if usestate else "abbreviation");
+        ostky = ("abbreviation" if usestate else "state");
+        errstky = stky[0].upper() + stky[1:].lower();
         for mobj in snmsobjs:
-            if (mobj[("state" if usestate else "abbreviation")] == val):
-                return mobj[("abbreviation" if usestate else "state")];
-        raise ValueError("Invalid " + ("State" if usestate else "Abbreviation") + " name (" +
-            val + ")!");
+            if (mobj[stky] == val): return mobj[ostky];
+        raise ValueError("Invalid " + errstky + " name (" + val + ")!");
     @classmethod
     def getAbbreviationForName(cls, val):
         return cls.getNameForAbbreviationOrAbbreviationForState(val, usestate=True);
@@ -86,7 +87,8 @@ class MyScraper:
     #actual scraper methods begin here
     @classmethod
     def getpage(cls, murl):
-        if (type(murl) == str and 5 < len(murl)): pass;
+        if (murl == None): raise ValueError("invalid URL used here!");
+        elif (type(murl) == str and 5 < len(murl)): pass;
         else: raise ValueError("invalid URL used here!");
         doc = BeautifulSoup(requests.get(murl).text, "html.parser");
         return doc;
@@ -95,14 +97,63 @@ class MyScraper:
     def getBaseURL(cls): return "https://local.churchofjesuschrist.org/";
     @classmethod
     def getBaseUSURL(cls): return cls.getBaseURL() + "en/us/";
+
+    @classmethod
+    def getAllCountryURLS(cls):
+        baseurl = cls.getBaseURL();
+        doc = cls.getpage(baseurl);
+        docbody = doc.body.select("#reactele")[0];#.select("div")[1].select("ul")[0];
+        #print(docbody);
+
+        mcntnrdivs = [kid for kid in docbody.children if kid.name == "div"];
+        #print("the container has " + str(len(mcntnrdivs)) + " div(s):");
+        #for mdivobj in mcntnrdivs: print(mdivobj);
+        #print("");
+        
+        mylistdivcntnr = mcntnrdivs[1];
+        #print(mylistdivcntnr);
+        #print("");
+
+        mylis = mylistdivcntnr.select("li");
+        #print(str(mylis));
+        #print("");
+        
+        #cntryurls = [];
+        #for mli in mylis:
+        #    mhrefurl = mli.select("a")[0]["href"];
+        #    print("mhrefurl = " + mhrefurl);
+        #    cntryurls.append(baseurl + mhrefurl);
+        #return cntryurls;
+        return [baseurl + mli.select("a")[0]["href"] for mli in mylis];
+    
     
     @classmethod
     def getAllUSAStatesURLs(cls):
         baseurl = cls.getBaseUSURL();
         abbrvs = cls.getAbbreviations();
         return ["" + baseurl + abbrv + "/" for abbrv in abbrvs];
+
+    #where the state is in the USA (country),
+    #but the zone is inside of a country other than the USA
+    #since the other methods actually do scraping instead of generation we are safe there
+    @classmethod
+    def getStateOrZoneURLs(cls, cntryurl):
+        doc = cls.getpage(cntryurl);
+        docbody = doc.body.select("#reactele")[0].select("div")[2].select("ul")[0];
+        mylis = docbody.select("li");
+        #print(str(mylis));
+        #print("");
+        
+        zones = [];
+        for mli in mylis:
+            mhrefurl = mli.select("a")[0]["href"];
+            zone = mhrefurl[mhrefurl.rindex("/") + 1:];
+            zones.append(zone);
+            #print(zone);
+        return [cntryurl + "/" + zone for zone in zones];
+        #return zones;
     
-    #now we need to get the counties for each state
+    #now we need to get the counties for each state (or zone)
     @classmethod
     def getCountiesForStateURL(cls, sturl):
         doc = cls.getpage(sturl);
@@ -120,11 +171,12 @@ class MyScraper:
     
     @classmethod
     def getCountyUrlFromStateAndCounty(cls, sturl, cnty):
-        if (type(sturl) == str and 5 < len(sturl)): pass;
+        if (sturl == None): raise ValueError("invalid state URL used here!");
+        elif (type(sturl) == str and 5 < len(sturl)): pass;
         else: raise ValueError("invalid state URL used here!");
-        if (type(cnty) == str and 0 < len(cnty)): pass;
+        if (cnty == None): raise ValueError("invalid county used here!");
+        elif (type(cnty) == str and 2 < len(cnty)): return "" + sturl + "/" + cnty + "/";
         else: raise ValueError("invalid county used here!");
-        return "" + sturl + "/" + cnty + "/";
 
     @classmethod
     def myStripText(cls, val):
@@ -135,6 +187,8 @@ class MyScraper:
 
     #now on each county we need to get the information from the cards...
     #NOT DONE YET NEED TO SOMEHOW SAVE THE DATA...
+    #DO I STORE THE DATA IN A JSON FILE OR DO I STORE IT IN AN SQLITE DB?
+    #IF I USE A DB DO I WANT OR NEED TO USE AN ORM?
     @classmethod
     def getInfoFromCounty(cls, cntyurl):
         doc = cls.getpage(cntyurl);
@@ -196,6 +250,9 @@ if (__name__ == '__main__'):
     print("both = " + str(MyScraper.getStateNameAndAbreviationsObjects()));
     baseurl = MyScraper.getBaseUSURL();
     print("base url = " + baseurl);
+    nonusbaseurl = MyScraper.getBaseURL();
+    print("nonus base url = " + nonusbaseurl);
+    kzbaseurl = nonusbaseurl + "en/kz";
     #countries -> USA ->
     #states -> CO ->
     #county -> denver
@@ -204,7 +261,20 @@ if (__name__ == '__main__'):
     #country -> ? ->
     #county -> ? ->
     #city -> ?
+    print("");
+    print("all country urls = " + str(MyScraper.getAllCountryURLS()));
+    print("");
+    #https://local.churchofjesuschrist.org/en/us
+    #https://local.churchofjesuschrist.org/en/kz
     print("all state urls = " + str(MyScraper.getAllUSAStatesURLs()));
     print("");
-    #print("cnties = " + str(MyScraper.getCountiesForStateURL(baseurl + "co")));
-    print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "co/denver/")));
+    print("all zone urls = " + str(MyScraper.getStateOrZoneURLs(kzbaseurl)));
+    print("");
+    #https://local.churchofjesuschrist.org/en/kz/almaty-oblast
+    #https://local.churchofjesuschrist.org/en/us/co
+    print("cnties = " + str(MyScraper.getCountiesForStateURL(baseurl + "co")));
+    print("cnties = " + str(MyScraper.getCountiesForStateURL(kzbaseurl + "/almaty-oblast")));
+    #https://local.churchofjesuschrist.org/en/us/co/denver/
+    #https://local.churchofjesuschrist.org/en/kz/almaty-oblast/almaty
+    #print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "co/denver/")));
+    print("info = " + str(MyScraper.getInfoFromCounty(kzbaseurl + "/almaty-oblast/almaty/")));
