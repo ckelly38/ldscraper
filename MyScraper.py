@@ -216,6 +216,10 @@ class MyScraper:
             #print(mcntnrdivs[1]);
             #print(mli.select("div")[0].select("div")[1]);#selects something wrong
             
+            #needs to handle the phone number and a phone number not being there at all
+            #the hours are either in a table or just for one day a week Sundays.
+            #these problems do occassionally screw up getting the data.
+
             #get the address and its container here
             addrcntnr = mcntnrdivs[1].select("div")[0];
             #print(addrcntnr);
@@ -274,7 +278,8 @@ if (__name__ == '__main__'):
     #https://local.churchofjesuschrist.org/en/us/co
     print("cnties = " + str(MyScraper.getCountiesForStateURL(baseurl + "co")));
     print("cnties = " + str(MyScraper.getCountiesForStateURL(kzbaseurl + "/almaty-oblast")));
-    #https://local.churchofjesuschrist.org/en/us/co/denver/
-    #https://local.churchofjesuschrist.org/en/kz/almaty-oblast/almaty
+    #https://local.churchofjesuschrist.org/en/us/co/denver/ (has phone num, one day for hours)
+    #https://local.churchofjesuschrist.org/en/kz/almaty-oblast/almaty (no phone num)
+    #need an example from utah or something where it is a table...
     #print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "co/denver/")));
     print("info = " + str(MyScraper.getInfoFromCounty(kzbaseurl + "/almaty-oblast/almaty/")));
