@@ -210,7 +210,9 @@ class MyScraper:
             #name returns the tag name
             #children gets the child elements of an HTML node or tag
             mcntnrdivs = [kid for kid in mncntnr.children if kid.name == "div"];
-            print("the container has " + str(len(mcntnrdivs)) + " div(s):");
+            numdivs = len(mcntnrdivs);
+            print("");
+            print("the container has " + str(numdivs) + " div(s):");
             for mdivobj in mcntnrdivs: print(mdivobj);
             print("");
             #print(mcntnrdivs[1]);
@@ -222,29 +224,57 @@ class MyScraper:
 
             #get the address and its container here
             addrcntnr = mcntnrdivs[1].select("div")[0];
-            #print(addrcntnr);
+            print(addrcntnr);
 
-            strt = cls.myStripText(addrcntnr.select("div")[0].select("span")[0].text);
-            cty = cls.myStripText(addrcntnr.select("div")[2].select("span")[0].text);
-            st = cls.myStripText(addrcntnr.select("div")[2].select("span")[2].text);
-            zp = cls.myStripText(addrcntnr.select("div")[2].select("span")[3].text);
+            strt = None;
+            cty = None;
+            st = None;
+            zp = None;
+            teltxt = None;
+            telnumstr = None;
+            mpsurltxt = None;
+            if (numdivs == 4):
+                strt = cls.myStripText(addrcntnr.select("div")[0].select("span")[0].text);#bld.
+                cty = cls.myStripText(addrcntnr.select("div")[2].select("span")[0].text);#denver
+                st = cls.myStripText(addrcntnr.select("div")[2].select("span")[2].text);#co
+                zp = cls.myStripText(addrcntnr.select("div")[2].select("span")[3].text);#num
+
+                #telephone number
+                telcntnr = mcntnrdivs[2].select("a")[0];
+                telnumstr = telcntnr["href"];#includes tel+ so may want to strip
+                teltxt = cls.myStripText(telcntnr.text);
+                print("teltxt = " + teltxt);
+                print("telnumstr = " + telnumstr);
+
+                #need the maps url
+                mpsurlcntnr = mcntnrdivs[3].select("a")[0];
+                mpsurltxt = mpsurlcntnr["href"]; 
+                #print(mpsurlcntnr);
+                print("mpsurltxt = " + mpsurltxt);
+            else:
+                myspans = addrcntnr.select("span");
+                print(myspans);
+                #[<span> Samal-3</span>, <span> #10A</span>, <span> Almaty</span>,
+                # <span> 050051</span>, <span> KZ</span>]
+                #0 is city, 1 is street, 2 is county, 3 is zip, 4 is country
+                cty = cls.myStripText(myspans[0].text);
+                strt = cls.myStripText(myspans[1].text); 
+                st = cls.myStripText(myspans[2].text);
+                zp = cls.myStripText(myspans[3].text);
+
+                #no phone number
+                #need the maps url
+                mpsurlcntnr = mcntnrdivs[2].select("a")[0];
+                mpsurltxt = mpsurlcntnr["href"]; 
+                #print(mpsurlcntnr);
+                print("mpsurltxt = " + mpsurltxt);
             print("strt = " + strt);
             print("cty = " + cty);
             print("st = " + st);
             print("zp = " + zp);
-
-            #telephone number
-            telcntnr = mcntnrdivs[2].select("a")[0];
-            telnumstr = telcntnr["href"];#includes tel+ so may want to strip
-            teltxt = cls.myStripText(telcntnr.text);
-            print("teltxt = " + teltxt);
-            print("telnumstr = " + telnumstr);
-
-            #need the maps url
-            mpsurlcntnr = mcntnrdivs[3].select("a")[0];
-            mpsurltxt = mpsurlcntnr["href"]; 
-            #print(mpsurlcntnr);
-            print("mpsurltxt = " + mpsurltxt);
+            print(f"teltxt = {teltxt}");
+            print(f"telnumstr = {telnumstr}");
+            print(f"mpsurltxt = {mpsurltxt}");
         print("");
         raise ValueError("NOT DONE YET 9-22-2025 3:45 AM MST!");
 
@@ -280,6 +310,13 @@ if (__name__ == '__main__'):
     print("cnties = " + str(MyScraper.getCountiesForStateURL(kzbaseurl + "/almaty-oblast")));
     #https://local.churchofjesuschrist.org/en/us/co/denver/ (has phone num, one day for hours)
     #https://local.churchofjesuschrist.org/en/kz/almaty-oblast/almaty (no phone num)
+    #https://local.churchofjesuschrist.org/en/us/ut/american-fork (multiple hours on sunday)
+    #
+    #https://local.churchofjesuschrist.org/en/hk/new-territories
+    #https://local.churchofjesuschrist.org/en/hk/nt
+    #
+    #https://local.churchofjesuschrist.org/en/hk/41-hai-wing-rd
+    #https://local.churchofjesuschrist.org/en/hk/-/new-territories
     #need an example from utah or something where it is a table...
     #print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "co/denver/")));
     print("info = " + str(MyScraper.getInfoFromCounty(kzbaseurl + "/almaty-oblast/almaty/")));
