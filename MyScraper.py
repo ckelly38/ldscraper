@@ -188,7 +188,7 @@ class MyScraper:
     #now on each county we need to get the information from the cards...
     #NOT DONE YET NEED TO SOMEHOW SAVE THE DATA...
     #DO I STORE THE DATA IN A JSON FILE OR DO I STORE IT IN AN SQLITE DB?
-    #IF I USE A DB DO I WANT OR NEED TO USE AN ORM?
+    #IF I USE A DB DO I WANT OR NEED TO USE AN ORM? I WILL USE AN SQLITE DB NOT A JSON FILE.
     @classmethod
     def getInfoFromCounty(cls, cntyurl):
         doc = cls.getpage(cntyurl);
@@ -221,6 +221,21 @@ class MyScraper:
             #needs to handle the phone number and a phone number not being there at all
             #the hours are either in a table or just for one day a week Sundays.
             #these problems do occassionally screw up getting the data.
+            #apparently there can be multiple sets of hours for each day for each building
+            #multiple start and end hours for each day for each building
+            #the building will probably have an id the address may also be a primary key...
+            #that table will also have
+            #hours table will include just hours and an id for it.
+            #we will need an hoursets table
+            #to have the start and the end hours and an id
+            #day hour set ids table will include:
+            #dyhrstid, day id, hrsetids
+            #the building hours table will include:
+            #building id, dhrstid
+
+            #get the hours from the first div
+            #do something here...
+            #print(docbody.select(".HoursTable"));#[0]
 
             #get the address and its container here
             addrcntnr = mcntnrdivs[1].select("div")[0];
@@ -318,5 +333,6 @@ if (__name__ == '__main__'):
     #https://local.churchofjesuschrist.org/en/hk/41-hai-wing-rd
     #https://local.churchofjesuschrist.org/en/hk/-/new-territories
     #need an example from utah or something where it is a table...
+    print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "ut/american-fork")));
     #print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "co/denver/")));
-    print("info = " + str(MyScraper.getInfoFromCounty(kzbaseurl + "/almaty-oblast/almaty/")));
+    #print("info = " + str(MyScraper.getInfoFromCounty(kzbaseurl + "/almaty-oblast/almaty/")));
