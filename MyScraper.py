@@ -224,19 +224,40 @@ class MyScraper:
             #apparently there can be multiple sets of hours for each day for each building
             #multiple start and end hours for each day for each building
             #the building will probably have an id the address may also be a primary key...
-            #that table will also have
-            #hours table will include just hours and an id for it.
+            #
+            #the buildings table will include:
+            #building id, address, dir url, telephone number if present
+            #
+            #the hours table will include just hours and an id for it.
+            #note: we can brute forcefully generate this and the hoursets tables
+            #
             #we will need an hoursets table
             #to have the start and the end hours and an id
+            #note: we can brute forcefully generate this and the hoursets tables
+            #the increment would be 15 minutes spead over increments of 1 hour until 10 PM
+            #starting at 6 AM for meetings.
+            #
             #day hour set ids table will include:
             #dyhrstid, day id, hrsetids
+            #
             #the building hours table will include:
             #building id, dhrstid
 
             #get the hours from the first div
-            #do something here...
+            #do something here... (NOT INCLUDED BY THE SERVER, BUT DISPLAYED TO THE USER)
             #print(docbody.select(".HoursTable"));#[0]
-
+            #THIS IS DISPLAYED TO THE USER, BUT NO EASY WAY TO GET IT
+            #THAT IS UNLESS WE CAN CREATE A SIMPLE JS SCRIPT TO
+            #PARSE THE HTML VIA DEV TOOLS CONSOLE, GET THE INFORMATION WE WANT,
+            #THEN SAVE IT TO A HOSTED DB...
+            #WE AS A USER WOULD HAVE TO GO TO EACH URL BY HAND AND DO THE ABOVE...
+            #FOR ALL PAGES PRETTY MUCH.
+            #
+            #can we create a chrome extension that can open a new tab with a certain url and
+            #then open up the inspector and then execute some code by the user
+            #
+            #https://www.google.com/search?q=can+we+create+a+chrome+extension+that+can+open+a+new+tab+with+a+certain+url+and+then+open+up+the+inspector+and+then+execute+some+code+by+the+user&oq=can+we+create+a+chrome+extension+that+can+open+a+new+tab+with+a+certain+url+and+then+open+up+the+inspector+and+then+execute+some+code+by+the+user&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIHCAEQIRiPAtIBCTg2MDQxajBqN6gCALACAA&sourceid=chrome&ie=UTF-8
+            #
             #get the address and its container here
             addrcntnr = mcntnrdivs[1].select("div")[0];
             print(addrcntnr);
