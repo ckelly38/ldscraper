@@ -336,6 +336,17 @@ class MyScraper:
         raise ValueError("NOT DONE YET 9-22-2025 3:45 AM MST!");
 
     @classmethod
+    def getAllDataFromMyURLs(cls, murls):
+        if (murls is None or len(murls) < 1): return None;
+        for murl in murls: cls.getInfoFromCounty(murl);
+        return None;
+    @classmethod
+    def getAllDataFromAllLocalURLs(cls):
+        return cls.getAllDataFromMyURLs(cls.getAllLocalURLs());
+    @classmethod
+    def getAllDataFromAllNonLocalURLs(cls): return cls.getAllDataFromMyURLs(cls.getAllURLs());
+
+    @classmethod
     def getAllURLs(cls):
         #we need to get all of the country URLs
         #we need to know which one we finished
