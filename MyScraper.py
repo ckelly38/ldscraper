@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup;
 import requests;
 import time;
+from selenium import webdriver;
+from selenium.webdriver.chrome.service import Service;
 class MyScraper:
     @classmethod
     def getStateNameAndAbreviationsObjects(cls):
@@ -85,6 +87,96 @@ class MyScraper:
     @classmethod
     def getAbbreviations(cls): return cls.getStatesOrAbbreviations(usestate=False);
 
+    @classmethod
+    def valIsNull(cls, val): return (val == None);
+    @classmethod
+    def valIsEmptyNull(cls, val): return (cls.valIsNull(val) or len(val) < 1);
+    @classmethod
+    def valMustNotBeNull(cls, val, varnm="varnm"):
+        if (cls.valIsEmptyNull(varnm)): return cls.valMustNotBeNull(val, "varnm");
+        merrmsg = "" + varnm + " must not be null or undefined, but it was!";
+        if (cls.valIsNull(val)): raise ValueError(merrmsg);
+        else: return True;
+    @classmethod
+    def valMustNotBeEmptyOrNull(cls, val, varnm="varnm"):
+        if (cls.valIsEmptyNull(varnm)): return cls.valMustNotBeEmptyOrNull(val, "varnm");
+        merrmsg = "" + varnm + " must not be empty, undefined, or null, but it was!";
+        if (cls.valIsEmptyNull(val)): raise ValueError(merrmsg);
+        else: return True;
+
+    #the times themselves are AM PM and not military... (might need converted)...
+    #00 is midnight 12 AM; 01 is 1 AM, ... 11 is 11 AM. 12 is 12 PM,
+    #13 = 1 PM, 14 = 2, 15 = 3, 16 = 4, ... 23 is 11 PM. Basically if PM add 12.
+    #if AM it is as is except for 12 AM that becomes 0.
+    @classmethod
+    def convertAMPMToMilitaryTime(cls, tmstr):
+        #the specific time string is going to be formatted #or##:## AM/PM
+        #12 AM is 00:00 on military time otherwise AM is not converted...
+        #12 PM stays as is but 1 to 12 not including 12 add 12 to it...
+        #assume the time string is in uppercase and the correct format...
+        #1 AM is the shortest valid time string with 4 characters...
+        #12:00 PM is the longest valid time string with 8 characters...
+        cls.valMustNotBeEmptyOrNull(tmstr, "tmstr");
+        merrmsga = "the time string was either too short or too long!";
+        merrmsgb = "THE STRING MUST HAVE AM OR PM ON IT AND IT CANNOT HAVE BOTH!";
+        merrmsgc = "illegal character found in the time string at i = ";
+        clnfnd = False;
+        clni = -1;
+        if (len(tmstr) < 4 or 8 < len(tmstr)): raise ValueError(merrmsga);
+        else:
+            spcfnd = False;
+            afnd = False;
+            pfnd = False;
+            mfnd = False;
+            nmdgts = 0;
+            for i in range(len(tmstr)):
+                if (str.isnumeric(tmstr[i]) and not mfnd and nmdgts < 2):
+                    if (nmdgts < 0): raise ValueError("numdgts must be at least zero!");
+                    else: nmdgts += 1;
+                elif (tmstr[i] == ':' and not clnfnd and not mfnd and 0 < i):
+                    clnfnd = True;
+                    clni = i;
+                    nmdgts = 0;
+                elif (tmstr[i] == ' ' and not mfnd and not spcfnd and 0 < i):
+                    spcfnd = True;
+                elif (((tmstr[i] == 'A') or (tmstr[i] == 'P')) and not mfnd and
+                    not afnd and not pfnd and 0 < i and (tmstr[i - 1] == ' ')):
+                    if (tmstr[i] == 'A'): afnd = True;
+                    else: pfnd = True;
+                elif (tmstr[i] == 'M' and not mfnd and 0 < i and
+                    ((afnd and tmstr[i - 1] == 'A') or
+                     (pfnd and tmstr[i - 1] == 'P'))):
+                    mfnd = True;
+                else: raise ValueError(merrmsgc + str(i) + "!");
+            #end of i for loop
+
+        ami = -1;
+        pmi = -1
+        if (" AM" in tmstr): ami = tmstr.index(" AM");
+        if (" PM" in tmstr): pmi = tmstr.index(" PM");
+        isnoam = (ami < 0 or len(tmstr) - 3 < ami);
+        isnopm = (pmi < 0 or len(tmstr) - 3 < pmi);
+        if (isnoam == isnopm): raise ValueError(merrmsgb);
+        
+        #need to get the hour num
+        #use the colon if we have one to get the hour num
+        #if we do not have a colon but we use the ami or pmi
+        ei = (clni if clnfnd else (pmi if isnoam else ami));
+        hrnum = int(tmstr[0: ei]);
+        finhrnum = (hrnum + 12 if (isnoam and hrnum < 12) else
+            (12 if (isnoam and hrnum == 12) else (hrnum if (isnopm and hrnum < 12) else 0)));
+        return "" + str(finhrnum) + (tmstr[clni: (pmi if isnoam else ami)] if clnfnd else "");
+
+    @classmethod
+    def testCNVTimeStr(cls):
+        print(cls.convertAMPMToMilitaryTime("12 AM"));#0
+        print(cls.convertAMPMToMilitaryTime("1 AM"));#1
+        print(cls.convertAMPMToMilitaryTime("11 AM"));#11
+        print(cls.convertAMPMToMilitaryTime("12:01 AM"));#0:01
+        print(cls.convertAMPMToMilitaryTime("12 PM"));#12
+        print(cls.convertAMPMToMilitaryTime("4 PM"));#16
+        print(cls.convertAMPMToMilitaryTime("4:30 PM"));#16:30
+
     #actual scraper methods begin here
     @classmethod
     def theURLMustBeValid(cls, murl, varnm="varnm"):
@@ -100,9 +192,31 @@ class MyScraper:
         else: raise ValueError(merrmsg);
 
     @classmethod
+    def getUseSel(cls): return True;
+
+    @classmethod
     def getpage(cls, murl, varnm="page url"):
         cls.theURLMustBeValid(murl, varnm=varnm);
-        doc = BeautifulSoup(requests.get(murl).text, "html.parser");
+        doc = None;
+        usesel = cls.getUseSel();
+        if (usesel):
+            #attempt something else
+            #chromedriver_path = r'C:/Program Files/chromedriver-win64/chromedriver.exe';
+            #mservice = Service(executable_path=chromedriver_path);
+            #driver = webdriver.Chrome(service=mservice);
+            #driver = webdriver.Chrome(executable_path=r'./chromedriver.exe');
+            opts = webdriver.ChromeOptions();
+            opts.add_argument("--headless");
+            opts.add_argument("--no-sandbox");
+            opts.add_argument("--disable-dev-shm-usage");
+            opts.add_argument("--remote-debugging-pipe");
+            driver = webdriver.Chrome(options=opts);
+            #line of code fails due to version compatibility problems
+            #driver = webdriver.Chrome(executable_path=chromedriver_path);
+            tmpg = driver.get(murl);
+            doc = BeautifulSoup(driver.page_source, "html.parser");
+            driver.quit();
+        else: doc = BeautifulSoup(requests.get(murl).text, "html.parser");
         return doc;
 
     @classmethod
@@ -207,10 +321,27 @@ class MyScraper:
     @classmethod
     def getInfoFromCounty(cls, cntyurl):
         doc = cls.getpage(cntyurl);
-        docbody = doc.body.select("#reactele")[0].select("div")[2].select("ul")[0];
+        #print(doc);
+        usesel = cls.getUseSel();
+        docbody = None;
+        if (usesel):
+            reactel = doc.body.select("#reactele")[0];
+            #print(reactel);
+        
+            reacteldivs = [kid for kid in reactel.children if kid.name == "div"];
+            #print("");
+            #print("the reactel has " + str(len(reacteldivs)) + " div(s):");
+            #for mdivobj in reacteldivs: print(mdivobj);
+            #print("");
+
+            docbody = reacteldivs[2].select("ul")[0];
+            #print(docbody);
+        else:    
+            docbody = doc.body.select("#reactele")[0].select("div")[2].select("ul")[0];
         mylis = docbody.select("li");
         #print(str(mylis));
         #print("");
+        hrstblerrmsg = "the day container must have 7 kids for 7 days in the week!";
         for mli in mylis:
             mncntnr = mli.select("div")[0];#DirectoryCard
             cntynm = mncntnr.select("h3")[0].select("a")[0].select("div")[1].text;
@@ -278,6 +409,65 @@ class MyScraper:
             #inspector+and+then+execute+some+code+by+the+user&gs_lcrp=
             #EgZjaHJvbWUyBggAEEUYOTIHCAEQIRiPAtIBCTg2MDQxajBqN6gCALACAA&sourceid=chrome&ie=UTF-8
             
+            hrstblebldarr = None;
+            if (usesel):
+                hrstbldivcntnr = mcntnrdivs[0];
+                hrstbldiv = hrstbldivcntnr.select("div")[0];
+                #inside the hrstbldiv are 7 row divs for the days of the week
+                #inside that is a span for the day name and another span as a time container.
+                #that span container contains x number of spans... with the intervals as the textContent.
+                #the times themselves are AM PM and not military... (might need converted)...
+                #00 is midnight 12 AM; 01 is 1 AM, ... 11 is 11 AM. 12 is 12 PM,
+                #13 = 1 PM, 14 = 2, 15 = 3, 16 = 4, ... 23 is 11 PM. Basically if PM add 12.
+                #if AM it is as is except for 12 AM that becomes 0.
+                
+                #assume that hrstbldiv.children.length is 7
+                #0 Sunday, 1 Monday, 2 Tuesday, 3 Wednesday, 4 Thursday, 5 Friday, 6 Saturday
+                hrstbldivs = hrstbldiv.select("div");
+                if (len(hrstbldivs) == 7): pass;
+                else: raise ValueError(hrstblerrmsg);
+
+                hrstblebldarr = [];
+                for n in range(len(hrstbldivs)):
+                    #each row div kid
+                    mdaydiv = hrstbldivs[n];
+                    mdaykids = [kid for kid in mdaydiv.children];
+                    hrsdaycntnr = mdaykids[1];
+                    mtimesdayarr = [];
+                    for hrintrvalspn in hrsdaycntnr.children:
+                        #print(hrintrvalspn);
+                        print("dayi = n = " + str(n));
+                        print(hrintrvalspn.text);#textContent
+
+                        strptxt = cls.myStripText(hrintrvalspn.text);
+                        delimi = strptxt.index(" - ");
+                        hrstra = strptxt[0: delimi];
+                        hrstrb = strptxt[delimi + 3:];
+                        fintima = cls.convertAMPMToMilitaryTime(hrstra);
+                        fintimb = cls.convertAMPMToMilitaryTime(hrstrb);
+                        #print("hrstra = " + hrstra);
+                        #print("hrstrb = " + hrstrb);
+                        print("fintima = " + fintima);
+                        print("fintimb = " + fintimb);
+                        mtimesdayarr.append({"start_time": fintima, "end_time": fintimb});
+                    #end of k for loop
+                    hrstblebldarr.append(mtimesdayarr);
+                #end of n for loop
+                #raise ValueError("NOT DONE YET WITH THE HOURS TABLE 10-17-2025 1:52 AM MST!");
+            #else not using selenium the code fails and the hours table is not provided
+            
+            #prints out the hours table array for one building here
+            print("");
+            if (hrstblebldarr == None): print("hrstblebldarr is None!");
+            else:
+                if (len(hrstblebldarr) == 7):
+                    print("hrstblebldarr:");
+                    for dayi in range(7):
+                        for n in range(len(hrstblebldarr[dayi])):
+                            print("dayi " + str(dayi) + ": " +
+                                  str(hrstblebldarr[dayi][n]["start_time"]) + " - " +
+                                  str(hrstblebldarr[dayi][n]["end_time"]));
+                else: raise ValueError(hrstblerrmsg);
 
             #get the address and its container here
             addrcntnr = mcntnrdivs[1].select("div")[0];
@@ -13627,6 +13817,7 @@ if (__name__ == '__main__'):
     nonusbaseurl = MyScraper.getBaseURL();
     print("nonus base url = " + nonusbaseurl);
     kzbaseurl = nonusbaseurl + "en/kz";
+    #MyScraper.testCNVTimeStr();
     #countries -> USA ->
     #states -> CO ->
     #county -> denver
@@ -13668,6 +13859,6 @@ if (__name__ == '__main__'):
     #https://local.churchofjesuschrist.org/en/hk/41-hai-wing-rd
     #https://local.churchofjesuschrist.org/en/hk/-/new-territories
     #need an example from utah or something where it is a table...
-    #print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "ut/american-fork")));
+    print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "ut/american-fork")));
     #print("info = " + str(MyScraper.getInfoFromCounty(baseurl + "co/denver/")));
     #print("info = " + str(MyScraper.getInfoFromCounty(kzbaseurl + "/almaty-oblast/almaty/")));
