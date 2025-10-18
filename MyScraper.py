@@ -410,8 +410,9 @@ class MyScraper:
             #EgZjaHJvbWUyBggAEEUYOTIHCAEQIRiPAtIBCTg2MDQxajBqN6gCALACAA&sourceid=chrome&ie=UTF-8
             
             hrstblebldarr = None;
-            if (usesel):
-                hrstbldivcntnr = mcntnrdivs[0];
+            hrstbldivcntnr = mcntnrdivs[0];
+            hrstblcntnrdivs = hrstbldivcntnr.select("div");
+            if (0 < len(hrstblcntnrdivs)):#usesel
                 hrstbldiv = hrstbldivcntnr.select("div")[0];
                 #inside the hrstbldiv are 7 row divs for the days of the week
                 #inside that is a span for the day name and another span as a time container.
@@ -522,6 +523,15 @@ class MyScraper:
             print(f"teltxt = {teltxt}");
             print(f"telnumstr = {telnumstr}");
             print(f"mpsurltxt = {mpsurltxt}");
+            print(f"cntyurl = {cntyurl}");
+            
+            #call DB storage methods here
+            #if the hourstable is empty or null, we will want to add them into the DB later
+            #so if null ignore it
+            #we want to create a new entry if needed or save all data on the DB and trash old
+            #data this is either a save or update DB method call.
+            #but it puts all of them on the DB.
+            #we will need to know if the table exists...
         print("");
         raise ValueError("NOT DONE YET 9-22-2025 3:45 AM MST!");
 
@@ -536,6 +546,7 @@ class MyScraper:
     @classmethod
     def getAllDataFromAllNonLocalURLs(cls): return cls.getAllDataFromMyURLs(cls.getAllURLs());
 
+    #uses the time library for waiting to delay the requests to not overload the server
     @classmethod
     def getAllURLs(cls):
         #we need to get all of the country URLs
